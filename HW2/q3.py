@@ -4,9 +4,10 @@ import pandas as pd
 from tqdm import tqdm
 from q2 import download_audio, cut_audio
 from typing import List
+from q1 import contains_label
 
 
-def filter_df(csv_path: str, label: str) -> List[str]:
+def filter_df(csv_path: str, label: str) -> pd.DataFrame:
     """
     Write a function that takes the path to the processed csv from q1 (in the notebook) and returns a df of only the rows 
     that contain the human readable label passed as argument
@@ -15,7 +16,10 @@ def filter_df(csv_path: str, label: str) -> List[str]:
     get_ids("audio_segments_clean.csv", "Speech")
     """
     # TODO
-    pass
+    df = pd.read_csv(f"{csv_path}")
+
+    filtered_df = df[df["label_names"].str.split('|').apply(lambda x: label in x)]
+    return filtered_df
 
 
 def data_pipeline(csv_path: str, label: str) -> None:
@@ -32,8 +36,27 @@ def data_pipeline(csv_path: str, label: str) -> None:
     Unfortunately, it is possible that some of the videos cannot be downloaded. In such cases, your pipeline should handle the failure by going to the next video with the label.
     """
     # TODO
-    pass
+    df = filter_df(csv_path, label)
+    # remove whitespace and special characters from column names
+    df.columns = df.columns.str.replace(' ', '')
+    df.columns = df.columns.str.replace('#', '')
 
+    # mkdir if not exists
+    
+    if not os.path.exists(f"{label}_raw"):
+        os.makedirs(f"{label}_raw")
+    if not os.path.exists(f"{label}_cut"):
+        os.makedirs(f"{label}_cut")
+    
+    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+        try:
+            download_audio(row["YTID"], f"{label}_raw/{row['YTID']}")
+        except:
+            continue
+        try:
+            cut_audio(f"{label}_raw/{row['YTID']}.mp3", f"{label}_cut/{row['YTID']}.mp3", row["start_seconds"], row["end_seconds"])
+        except:
+            continue
 
 def rename_files(path_cut: str, csv_path: str) -> None:
     """
@@ -49,7 +72,17 @@ def rename_files(path_cut: str, csv_path: str) -> None:
     ## BE WARY: Assume that the YTID can contain special characters such as '.' or even '.mp3' ##
     """
     # TODO
-    pass
+    df = pd.read_csv(csv_path)
+    # remove whitespace and special characters from column names
+    df.columns = df.columns.str.replace(' ', '')
+    df.columns = df.columns.str.replace('#', '')
+
+    for index, row in tqdm(df.iterrows(), total=df.shape[0]):
+        try:
+            os.rename(f"{path_cut}/{row['YTID']}.mp3", f"{path_cut}/{row['YTID']}_{int(row['start_seconds'])}_{int(row['end_seconds'])}_{int(row['end_seconds']) - int(row['start_seconds'])}.mp3")
+        except:
+            continue
+
 
 
 if __name__ == "__main__":

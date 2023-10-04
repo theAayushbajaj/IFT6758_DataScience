@@ -7,6 +7,7 @@ import csv
 import threading
 from tqdm import tqdm
 from os.path import exists
+import re
 
 
 def download_audio(YTID: str, path: str) -> None:
@@ -23,24 +24,24 @@ def download_audio(YTID: str, path: str) -> None:
       'https://www.youtube.com/watch?v='+YTID
       path: The path to the file where the audio will be saved
     """
-    # TODO
-    URLS = [f'https://www.youtube.com/watch?v={YTID}']
+    path = re.sub(r'\.mp3$', '', path)
 
-    ydl_opts = {
-        'format': 'm4a/bestaudio/best',
-        # ℹ️ See help(yt_dlp.postprocessor) for a list of available Postprocessors and their arguments
-        'postprocessors': [{  # Extract audio using ffmpeg
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'm4a',
-        }]
-    }
+    try:
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': path,
+        }
 
-    with YoutubeDL(ydl_opts) as ydl:
-        try:
-          error_code = ydl.download(URLS, outtmpl=path)
-        except:
-          print(f'Error downloading {YTID}')
-          return  
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download(['https://www.youtube.com/watch?v=' + YTID])
+
+    except Exception as e:
+        return  
 
 
 def cut_audio(in_path: str, out_path: str, start: float, end: float) -> None:
@@ -60,5 +61,4 @@ def cut_audio(in_path: str, out_path: str, start: float, end: float) -> None:
       stream = ffmpeg.output(stream, out_path, ss=start, to=end)
       ffmpeg.run(stream)
     except:
-      print(f'Error cutting {in_path}')
-      return
+      return -1
